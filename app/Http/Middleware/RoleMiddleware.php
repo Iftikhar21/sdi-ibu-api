@@ -4,11 +4,13 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class RoleMiddleware
 {
-    public function handle(Request $request, Closure $next, $role)
+    /**
+     * $roles bisa berisi beberapa role, mis. `role:admin,guru`.
+     */
+    public function handle(Request $request, Closure $next, string ...$roles)
     {
         $user = $request->user();
 
@@ -16,7 +18,7 @@ class RoleMiddleware
         if (! $user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Anda belum login'
+                'message' => 'Anda belum login',
             ], 401);
         }
 
@@ -24,15 +26,15 @@ class RoleMiddleware
         if (! $user->role) {
             return response()->json([
                 'success' => false,
-                'message' => 'User tidak memiliki role'
+                'message' => 'User tidak memiliki role',
             ], 403);
         }
 
         // 3. Role tidak sesuai
-        if ($user->role->role_name !== $role) {
+        if (! in_array($user->role->role_name, $roles, true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Akses ditolak'
+                'message' => 'Akses ditolak',
             ], 403);
         }
 

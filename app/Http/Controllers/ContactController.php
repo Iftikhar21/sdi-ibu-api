@@ -73,12 +73,14 @@ class ContactController extends Controller
             'logo' => 'required|nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'deskripsi' => 'required|nullable|string',
             'alamat' => 'required|nullable|string',
-            'telepon' => 'required|nullable|string|max:20',
+            'telepon' => ['required', 'nullable', 'string', 'max:20', 'regex:/^[0-9+\-\s()]*$/'],
             'email' => 'required|nullable|email|max:255',
             'map_embed' => 'required|nullable|string',
             'socials' => 'nullable|array',
             'socials.*.platform' => 'required_with:socials|string',
             'socials.*.url' => 'required_with:socials|url',
+        ], [
+            'telepon.regex' => 'Nomor telepon hanya boleh berisi angka, spasi, dan simbol + - ( ).',
         ]);
 
         // Upload logo
