@@ -27,6 +27,7 @@ class StudentRegistration extends Model
         'birth_certificate',
         'family_card',
         'payment_proof',
+        'transfer_proof',
 
         'status',
         'notes',

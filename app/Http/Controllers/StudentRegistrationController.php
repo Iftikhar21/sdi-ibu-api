@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
+use App\Models\RegistrationSetting;
 use App\Models\StudentRegistration;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -46,6 +47,20 @@ class StudentRegistrationController extends Controller
     public function store(Request $request)
     {
         try {
+            $registrationSetting = RegistrationSetting::query()->first();
+            $phase = $registrationSetting?->phase ?? 'closed';
+
+            if ($phase !== 'open') {
+                $message = $phase === 'account'
+                    ? 'Formulir pendaftaran belum dibuka. Silakan buat akun terlebih dahulu dan pantau informasi berikutnya.'
+                    : 'Pendaftaran siswa baru belum dibuka. Silakan pantau kembali halaman pendaftaran.';
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $registrationSetting?->phase_message ?: $message,
+                ], 422);
+            }
+
             $validated = $request->validate([
                 'full_name' => 'required|string|max:255',
                 'nickname' => 'required|string|max:100',
@@ -63,6 +78,7 @@ class StudentRegistrationController extends Controller
                 'birth_certificate' => 'required|image|mimes:jpeg,png,jpg|max:10240',
                 'family_card' => 'required|image|mimes:jpeg,png,jpg|max:10240',
                 'payment_proof' => 'required|image|mimes:jpeg,png,jpg|max:10240',
+                'transfer_proof' => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:10240',
             ], [
                 'birth_date.before_or_equal' => 'Tanggal lahir tidak boleh lebih dari hari ini.',
                 'photo.max' => 'Ukuran foto maksimal 10MB.',
@@ -74,6 +90,8 @@ class StudentRegistrationController extends Controller
                 'birth_certificate.mimes' => 'Akte kelahiran harus berupa file gambar: jpeg, png, jpg.',
                 'family_card.mimes' => 'Kartu keluarga harus berupa file gambar: jpeg, png, jpg.',
                 'payment_proof.mimes' => 'Bukti pembayaran harus berupa file gambar: jpeg, png, jpg.',
+                'transfer_proof.max' => 'Ukuran bukti pindahan maksimal 10MB.',
+                'transfer_proof.mimes' => 'Bukti pindahan harus berupa JPG, PNG, PDF, DOC, atau DOCX.',
             ]);
 
             // Pendaftaran hanya dibuka bila tahun ajaran aktif sudah ditetapkan
@@ -84,6 +102,20 @@ class StudentRegistrationController extends Controller
                     'success' => false,
                     'message' => 'Pendaftaran belum dibuka karena tahun ajaran aktif belum '
                         .'ditetapkan. Silakan hubungi admin sekolah.',
+                ], 422);
+            }
+
+            $quota = (int) ($registrationSetting?->quota ?? 0);
+            $registered = StudentRegistration::query()
+                ->where('academic_year_id', $activeYear->id)
+                ->where('status', '!=', 'rejected')
+                ->count();
+
+            if ($quota > 0 && $registered >= $quota) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Kuota pendaftaran tahun ajaran '.$activeYear->name
+                        .' sudah penuh. Silakan hubungi admin sekolah.',
                 ], 422);
             }
 
@@ -115,6 +147,11 @@ class StudentRegistrationController extends Controller
                     ->store('registrations/payment_proofs', 'public');
             }
 
+            if ($request->hasFile('transfer_proof')) {
+                $registration->transfer_proof = $request->file('transfer_proof')
+                    ->store('registrations/transfer_proofs', 'public');
+            }
+
             $registration->status = 'submitted';
             $registration->save();
 
@@ -130,6 +167,9 @@ class StudentRegistrationController extends Controller
             $registration->birth_certificate_url = asset('storage/'.$registration->birth_certificate);
             $registration->family_card_url = asset('storage/'.$registration->family_card);
             $registration->payment_proof_url = asset('storage/'.$registration->payment_proof);
+            $registration->transfer_proof_url = $registration->transfer_proof
+                ? asset('storage/'.$registration->transfer_proof)
+                : null;
 
             return response()->json([
                 'success' => true,
@@ -161,6 +201,9 @@ class StudentRegistrationController extends Controller
             $registration->birth_certificate_url = asset('storage/'.$registration->birth_certificate);
             $registration->family_card_url = asset('storage/'.$registration->family_card);
             $registration->payment_proof_url = asset('storage/'.$registration->payment_proof);
+            $registration->transfer_proof_url = $registration->transfer_proof
+                ? asset('storage/'.$registration->transfer_proof)
+                : null;
 
             return response()->json([
                 'success' => true,

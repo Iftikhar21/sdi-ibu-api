@@ -8,6 +8,7 @@ use App\Http\Controllers\ClassroomController;
 use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\ClassroomPlacement;
+use App\Models\RegistrationSetting;
 use App\Models\Role;
 use App\Models\StudentRegistration;
 use App\Models\User;
@@ -28,6 +29,7 @@ class ClassroomPlacementTest extends TestCase
 
         Role::create(['role_name' => 'admin']);
         Role::create(['role_name' => 'user']);
+        RegistrationSetting::query()->firstOrFail()->update(['phase' => 'open']);
     }
 
     private function tahunAjaran(string $name = '2026/2027', bool $active = true): AcademicYear

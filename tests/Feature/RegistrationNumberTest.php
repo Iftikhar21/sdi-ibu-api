@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\AcademicYearController;
 use App\Models\AcademicYear;
+use App\Models\RegistrationSetting;
 use App\Models\Role;
 use App\Models\Student;
 use App\Models\StudentRegistration;
@@ -26,6 +27,7 @@ class RegistrationNumberTest extends TestCase
 
         Role::create(['role_name' => 'admin']);
         Role::create(['role_name' => 'user']);
+        RegistrationSetting::query()->firstOrFail()->update(['phase' => 'open']);
     }
 
     private function tahunAjaran(string $name = '2026/2027', bool $active = true): AcademicYear

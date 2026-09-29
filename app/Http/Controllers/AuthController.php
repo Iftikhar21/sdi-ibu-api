@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RegistrationSetting;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -11,6 +12,15 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        $registrationSetting = RegistrationSetting::query()->first();
+
+        if (($registrationSetting?->phase ?? 'closed') === 'closed') {
+            return response()->json([
+                'message' => $registrationSetting?->phase_message
+                    ?: 'Pembuatan akun pendaftaran belum dibuka. Silakan pantau halaman pendaftaran.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255',

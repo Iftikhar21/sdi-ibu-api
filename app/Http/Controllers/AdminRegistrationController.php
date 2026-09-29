@@ -96,6 +96,7 @@ class AdminRegistrationController extends Controller
             $item->birth_certificate_url = $item->birth_certificate ? asset('storage/'.$item->birth_certificate) : null;
             $item->family_card_url = $item->family_card ? asset('storage/'.$item->family_card) : null;
             $item->payment_proof_url = $item->payment_proof ? asset('storage/'.$item->payment_proof) : null;
+            $item->transfer_proof_url = $item->transfer_proof ? asset('storage/'.$item->transfer_proof) : null;
 
             return $item;
         });
@@ -300,6 +301,7 @@ class AdminRegistrationController extends Controller
             '2-Akte-Kelahiran' => $registration->birth_certificate,
             '3-Kartu-Keluarga' => $registration->family_card,
             '4-Bukti-Pembayaran' => $registration->payment_proof,
+            '5-Bukti-Pindahan' => $registration->transfer_proof,
         ];
 
         $files = [];
@@ -361,6 +363,7 @@ class AdminRegistrationController extends Controller
         $registration->birth_certificate_url = $registration->birth_certificate ? asset('storage/'.$registration->birth_certificate) : null;
         $registration->family_card_url = $registration->family_card ? asset('storage/'.$registration->family_card) : null;
         $registration->payment_proof_url = $registration->payment_proof ? asset('storage/'.$registration->payment_proof) : null;
+        $registration->transfer_proof_url = $registration->transfer_proof ? asset('storage/'.$registration->transfer_proof) : null;
 
         return response()->json([
             'success' => true,

@@ -28,6 +28,7 @@ use App\Http\Controllers\PrincipalController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\ReportCardController;
+use App\Http\Controllers\RegistrationInformationController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentRegistrationController;
@@ -67,6 +68,7 @@ Route::get('/profil/struktur-organisasi', [ViewController::class, 'getOrganizati
 Route::get('/profil/legalitas', [ViewController::class, 'getLegalities']);
 Route::get('/profil/lulusan', [ViewController::class, 'getGraduates']);
 Route::get('/kegiatan-list', [ViewController::class, 'getActivities']);
+Route::get('/registration-information', [RegistrationInformationController::class, 'publicShow']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('registrations')->group(function () {
@@ -89,6 +91,9 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+
+    Route::get('/admin/registration-information', [RegistrationInformationController::class, 'adminShow']);
+    Route::put('/admin/registration-information', [RegistrationInformationController::class, 'update']);
 
     Route::prefix('admin')->group(function () {
         Route::get('/profile', [AdminController::class, 'getProfile']);
