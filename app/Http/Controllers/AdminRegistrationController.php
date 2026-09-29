@@ -71,6 +71,7 @@ class AdminRegistrationController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
                     ->orWhere('nickname', 'like', "%{$search}%")
+                    ->orWhere('previous_school', 'like', "%{$search}%")
                     ->orWhere('father_name', 'like', "%{$search}%")
                     ->orWhere('mother_name', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
@@ -169,6 +170,7 @@ class AdminRegistrationController extends Controller
             'No. Pendaftaran',
             'Nama Lengkap',
             'Nama Panggilan',
+            'Asal Sekolah',
             'Jenis Kelamin',
             'Tempat Lahir',
             'Tanggal Lahir',
@@ -198,6 +200,7 @@ class AdminRegistrationController extends Controller
                 $item->registration_number ?? '',
                 $item->full_name,
                 $item->nickname,
+                $item->previous_school ?? '',
                 $genderLabels[$item->gender] ?? $item->gender,
                 $item->birth_place,
                 $toExcelDate($item->birth_date),

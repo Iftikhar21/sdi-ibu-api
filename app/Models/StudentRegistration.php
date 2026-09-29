@@ -16,6 +16,7 @@ class StudentRegistration extends Model
         'gender',
         'birth_place',
         'birth_date',
+        'previous_school',
 
         'father_name',
         'mother_name',

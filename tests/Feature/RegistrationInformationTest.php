@@ -44,6 +44,7 @@ class RegistrationInformationTest extends TestCase
             'gender' => 'L',
             'birth_place' => 'Jakarta',
             'birth_date' => '2019-05-01',
+            'previous_school' => 'TK Melati',
             'father_name' => 'Ayah '.$name,
             'mother_name' => 'Ibu '.$name,
             'address' => 'Jl. Dalang No. 1',

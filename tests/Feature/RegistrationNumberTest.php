@@ -58,6 +58,7 @@ class RegistrationNumberTest extends TestCase
             'gender' => 'L',
             'birth_place' => 'Jakarta',
             'birth_date' => '2019-05-01',
+            'previous_school' => 'TK Melati',
             'father_name' => 'Ayah '.$name,
             'mother_name' => 'Ibu '.$name,
             'address' => 'Jl. Dalang No. 1',
@@ -96,6 +97,21 @@ class RegistrationNumberTest extends TestCase
         );
         $this->assertSame('submitted', $registration->status);
         $this->assertSame(0, Student::count());
+    }
+
+    public function test_asal_sekolah_wajib_diisi_pada_pendaftaran_baru(): void
+    {
+        Storage::fake('public');
+        $this->tahunAjaran('2026/2027', true);
+        $user = User::factory()->create(['role_id' => 2]);
+        Sanctum::actingAs($user);
+
+        $payload = $this->payload();
+        unset($payload['previous_school']);
+
+        $this->post('/api/registrations', $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('previous_school');
     }
 
     public function test_nomor_pendaftaran_tidak_sama_antar_pendaftar(): void
@@ -200,6 +216,8 @@ class RegistrationNumberTest extends TestCase
 
         $this->assertSame('No. Pendaftaran', $sheet->getCell('C1')->getValue());
         $this->assertSame('REG-2026-0001', $sheet->getCell('C2')->getValue());
+        $this->assertSame('Asal Sekolah', $sheet->getCell('F1')->getValue());
+        $this->assertSame('TK Melati', $sheet->getCell('F2')->getValue());
 
         @unlink($path);
         $this->assertNotNull($year->id);

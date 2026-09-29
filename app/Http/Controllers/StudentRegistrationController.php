@@ -67,6 +67,7 @@ class StudentRegistrationController extends Controller
                 'gender' => 'required|in:L,P',
                 'birth_place' => 'required|string|max:255',
                 'birth_date' => 'required|date|before_or_equal:today',
+                'previous_school' => 'required|string|max:255',
 
                 'father_name' => 'required|string|max:255',
                 'mother_name' => 'required|string|max:255',
@@ -81,6 +82,7 @@ class StudentRegistrationController extends Controller
                 'transfer_proof' => 'nullable|file|mimes:jpeg,png,jpg,pdf,doc,docx|max:10240',
             ], [
                 'birth_date.before_or_equal' => 'Tanggal lahir tidak boleh lebih dari hari ini.',
+                'previous_school.required' => 'Asal sekolah wajib diisi.',
                 'photo.max' => 'Ukuran foto maksimal 10MB.',
                 'phone.regex' => 'Nomor telepon hanya boleh berisi angka, spasi, dan simbol + - ( ).',
                 'birth_certificate.max' => 'Ukuran akte kelahiran maksimal 10MB.',
