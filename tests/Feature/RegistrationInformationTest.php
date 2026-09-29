@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicYear;
+use App\Models\Classroom;
 use App\Models\RegistrationFee;
 use App\Models\RegistrationRequirement;
 use App\Models\RegistrationSetting;
@@ -59,7 +60,21 @@ class RegistrationInformationTest extends TestCase
 
     public function test_admin_can_update_information_and_public_only_sees_active_items(): void
     {
-        $this->activeYear();
+        $activeYear = $this->activeYear();
+        Classroom::create([
+            'academic_year_id' => $activeYear->id,
+            'grade_level' => 1,
+            'name' => 'A',
+            'quota' => 25,
+            'is_active' => true,
+        ]);
+        Classroom::create([
+            'academic_year_id' => $activeYear->id,
+            'grade_level' => 1,
+            'name' => 'B',
+            'quota' => 20,
+            'is_active' => false,
+        ]);
         Sanctum::actingAs(User::factory()->create(['role_id' => 1]));
 
         $this->putJson('/api/admin/registration-information', [
@@ -67,6 +82,9 @@ class RegistrationInformationTest extends TestCase
             'phase_message' => null,
             'quota' => 30,
             'quota_description' => 'Kuota siswa baru.',
+            'payment_bank' => 'Bank Syariah Indonesia',
+            'payment_account_number' => '1234567890',
+            'payment_account_name' => 'SDI Ikhlas Bakti Umat',
             'requirements' => [
                 ['content' => 'Akta kelahiran', 'is_active' => true],
                 ['content' => 'Dokumen internal', 'is_active' => false],
@@ -84,6 +102,14 @@ class RegistrationInformationTest extends TestCase
         $this->getJson('/api/registration-information')
             ->assertOk()
             ->assertJsonPath('data.available', 30)
+            ->assertJsonPath('data.payment_bank', 'Bank Syariah Indonesia')
+            ->assertJsonPath('data.payment_account_number', '1234567890')
+            ->assertJsonPath('data.payment_account_name', 'SDI Ikhlas Bakti Umat')
+            ->assertJsonCount(1, 'data.class_quotas')
+            ->assertJsonPath('data.class_quotas.0.name', '1A')
+            ->assertJsonPath('data.class_quotas.0.quota', 25)
+            ->assertJsonPath('data.class_quotas.0.filled', 0)
+            ->assertJsonPath('data.class_quotas.0.available', 25)
             ->assertJsonCount(1, 'data.requirements')
             ->assertJsonCount(1, 'data.fees');
     }

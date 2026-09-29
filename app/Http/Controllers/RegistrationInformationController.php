@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
+use App\Models\Classroom;
 use App\Models\RegistrationFee;
 use App\Models\RegistrationRequirement;
 use App\Models\RegistrationSetting;
@@ -35,6 +36,9 @@ class RegistrationInformationController extends Controller
             'phase_message' => 'nullable|string|max:2000',
             'quota' => 'required|integer|min:0|max:100000',
             'quota_description' => 'nullable|string|max:1000',
+            'payment_bank' => 'nullable|required_with:payment_account_number,payment_account_name|string|max:100',
+            'payment_account_number' => 'nullable|required_with:payment_bank,payment_account_name|string|max:100',
+            'payment_account_name' => 'nullable|required_with:payment_bank,payment_account_number|string|max:150',
             'requirements' => 'present|array|max:50',
             'requirements.*.content' => 'required|string|max:500',
             'requirements.*.is_active' => 'required|boolean',
@@ -45,6 +49,9 @@ class RegistrationInformationController extends Controller
             'fees.*.is_active' => 'required|boolean',
         ], [
             'quota.min' => 'Kuota tidak boleh kurang dari 0.',
+            'payment_bank.required_with' => 'Nama bank wajib diisi jika informasi rekening digunakan.',
+            'payment_account_number.required_with' => 'Nomor rekening wajib diisi jika informasi rekening digunakan.',
+            'payment_account_name.required_with' => 'Nama pemilik rekening wajib diisi jika informasi rekening digunakan.',
             'requirements.*.content.required' => 'Isi persyaratan wajib diisi.',
             'fees.*.program.required' => 'Nama program biaya wajib diisi.',
             'fees.*.amount.required' => 'Nominal biaya wajib diisi.',
@@ -57,6 +64,9 @@ class RegistrationInformationController extends Controller
                 'phase_message' => $validated['phase_message'] ?? null,
                 'quota' => $validated['quota'],
                 'quota_description' => $validated['quota_description'] ?? null,
+                'payment_bank' => $validated['payment_bank'] ?? null,
+                'payment_account_number' => $validated['payment_account_number'] ?? null,
+                'payment_account_name' => $validated['payment_account_name'] ?? null,
             ])->save();
 
             RegistrationRequirement::query()->delete();
@@ -98,6 +108,23 @@ class RegistrationInformationController extends Controller
                 ->where('status', '!=', 'rejected')
                 ->count()
             : 0;
+        $classQuotas = $activeYear
+            ? Classroom::query()
+                ->where('academic_year_id', $activeYear->id)
+                ->where('is_active', true)
+                ->withCount('activePlacements')
+                ->ordered()
+                ->get()
+                ->map(fn (Classroom $classroom) => [
+                    'id' => $classroom->id,
+                    'name' => $classroom->display_name,
+                    'grade_level' => $classroom->grade_level,
+                    'quota' => $classroom->quota,
+                    'filled' => $classroom->filled_count,
+                    'available' => $classroom->available_count,
+                ])
+                ->values()
+            : collect();
 
         $requirements = RegistrationRequirement::query()
             ->when(! $includeInactive, fn ($query) => $query->where('is_active', true))
@@ -117,6 +144,10 @@ class RegistrationInformationController extends Controller
             'registered' => $registered,
             'available' => $quota > 0 ? max(0, $quota - $registered) : null,
             'quota_description' => $setting?->quota_description,
+            'payment_bank' => $setting?->payment_bank,
+            'payment_account_number' => $setting?->payment_account_number,
+            'payment_account_name' => $setting?->payment_account_name,
+            'class_quotas' => $classQuotas,
             'requirements' => $requirements,
             'fees' => $fees,
         ];

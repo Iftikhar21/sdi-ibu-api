@@ -11,6 +11,9 @@ class RegistrationSetting extends Model
         'phase_message',
         'quota',
         'quota_description',
+        'payment_bank',
+        'payment_account_number',
+        'payment_account_name',
     ];
 
     protected $casts = [
