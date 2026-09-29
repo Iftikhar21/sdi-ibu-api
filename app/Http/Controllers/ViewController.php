@@ -137,7 +137,7 @@ class ViewController extends Controller
         if ($kontak) {
             $kontak->logo_url = $kontak->logo
                 ? asset('storage/'.$kontak->logo)
-                : asset('images/no-image.png');
+                : null;
         }
 
         return response()->json([
@@ -405,7 +405,7 @@ class ViewController extends Controller
         if ($kontak) {
             $kontak->logo_url = $kontak->logo
                 ? asset('storage/'.$kontak->logo)
-                : asset('images/no-image.png');
+                : null;
         }
 
         return response()->json([

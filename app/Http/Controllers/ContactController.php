@@ -25,52 +25,52 @@ class ContactController extends Controller
         return $iframe;
     }
 
-    function index()
+    public function index()
     {
         $contact = Contact::with('socials')->latest()->first();
 
         if (! $contact) {
             return response()->json([
                 'success' => false,
-                'message' => 'Contact belum ditambahkan'
+                'message' => 'Contact belum ditambahkan',
             ], 404);
         }
 
         $contact->logo_url = $contact->logo
-            ? asset('storage/' . $contact->logo)
-            : asset('images/no-image.png');
+            ? asset('storage/'.$contact->logo)
+            : null;
 
         return response()->json([
             'success' => true,
-            'data' => $contact
+            'data' => $contact,
         ]);
     }
 
-    function show($id)
+    public function show($id)
     {
         $contact = Contact::with('socials')->find($id);
 
         if (! $contact) {
             return response()->json([
                 'success' => false,
-                'message' => 'Contact not found'
+                'message' => 'Contact not found',
             ], 404);
         }
 
         $contact->logo_url = $contact->logo
-            ? asset('storage/' . $contact->logo)
-            : asset('images/no-image.png');
+            ? asset('storage/'.$contact->logo)
+            : null;
 
         return response()->json([
             'success' => true,
-            'data' => $contact
+            'data' => $contact,
         ]);
     }
 
-    function store(Request $request)
+    public function store(Request $request)
     {
         $validated = $request->validate([
-            'logo' => 'required|nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'deskripsi' => 'required|nullable|string',
             'alamat' => 'required|nullable|string',
             'telepon' => ['required', 'nullable', 'string', 'max:20', 'regex:/^[0-9+\-\s()]*$/'],
@@ -108,10 +108,10 @@ class ContactController extends Controller
         // Create socials if exists
         if ($request->filled('socials')) {
             foreach ($request->socials as $social) {
-                if (!empty($social['platform']) && !empty($social['url'])) {
+                if (! empty($social['platform']) && ! empty($social['url'])) {
                     $contact->socials()->create([
                         'platform' => $social['platform'],
-                        'url' => $social['url']
+                        'url' => $social['url'],
                     ]);
                 }
             }
@@ -120,29 +120,35 @@ class ContactController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Contact created successfully',
-            'data' => $contact->load('socials')
+            'data' => $contact->load('socials'),
         ], 201);
     }
 
-    function update(Request $request, $id)
+    public function update(Request $request, $id)
     {
         Log::info('=== UPDATE CONTACT ===');
-        Log::info('Method: ' . $request->method());
-        Log::info('Content-Type: ' . $request->header('Content-Type'));
+        Log::info('Method: '.$request->method());
+        Log::info('Content-Type: '.$request->header('Content-Type'));
         Log::info('All: ', $request->all());
-        Log::info('Input deskripsi: ' . $request->input('deskripsi', 'NOT FOUND'));
-        Log::info('Input alamat: ' . $request->input('alamat', 'NOT FOUND'));
+        Log::info('Input deskripsi: '.$request->input('deskripsi', 'NOT FOUND'));
+        Log::info('Input alamat: '.$request->input('alamat', 'NOT FOUND'));
 
         $contact = Contact::findOrFail($id);
 
         // Validasi minimal
         $request->validate([
             'logo' => 'sometimes|nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'remove_logo' => 'sometimes|boolean',
             'email' => 'sometimes|nullable|email',
         ]);
 
         // LOGO
-        if ($request->hasFile('logo')) {
+        if ($request->boolean('remove_logo') && ! $request->hasFile('logo')) {
+            if ($contact->logo) {
+                Storage::disk('public')->delete($contact->logo);
+            }
+            $contact->logo = null;
+        } elseif ($request->hasFile('logo')) {
             if ($contact->logo) {
                 Storage::disk('public')->delete($contact->logo);
             }
@@ -153,22 +159,22 @@ class ContactController extends Controller
         // Gunakan has() untuk check jika field dikirim
         if ($request->has('deskripsi')) {
             $contact->deskripsi = $request->input('deskripsi');
-            Log::info('Updating deskripsi to: ' . $contact->deskripsi);
+            Log::info('Updating deskripsi to: '.$contact->deskripsi);
         }
 
         if ($request->has('alamat')) {
             $contact->alamat = $request->input('alamat');
-            Log::info('Updating alamat to: ' . $contact->alamat);
+            Log::info('Updating alamat to: '.$contact->alamat);
         }
 
         if ($request->has('telepon')) {
             $contact->telepon = $request->input('telepon');
-            Log::info('Updating telepon to: ' . $contact->telepon);
+            Log::info('Updating telepon to: '.$contact->telepon);
         }
 
         if ($request->has('email')) {
             $contact->email = $request->input('email');
-            Log::info('Updating email to: ' . $contact->email);
+            Log::info('Updating email to: '.$contact->email);
         }
 
         if ($request->has('map_embed')) {
@@ -200,7 +206,7 @@ class ContactController extends Controller
                 Log::info('Deleted existing socials');
 
                 foreach ($socialsData as $social) {
-                    if (!empty($social['platform']) && !empty($social['url'])) {
+                    if (! empty($social['platform']) && ! empty($social['url'])) {
                         $contact->socials()->create([
                             'platform' => $social['platform'],
                             'url' => $social['url'],
@@ -222,14 +228,14 @@ class ContactController extends Controller
         ]);
     }
 
-    function destroy($id)
+    public function destroy($id)
     {
         $contact = Contact::find($id);
 
         if (! $contact) {
             return response()->json([
                 'success' => false,
-                'message' => 'Contact not found'
+                'message' => 'Contact not found',
             ], 404);
         }
 
@@ -245,7 +251,7 @@ class ContactController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Contact deleted successfully'
+            'message' => 'Contact deleted successfully',
         ]);
     }
 }
