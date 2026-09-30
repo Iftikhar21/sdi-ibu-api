@@ -464,21 +464,30 @@ class ClassroomPlacementController extends Controller
     }
 
     /**
-     * Ubah "1A" / "1 A" menjadi kelas pada tahun ajaran pendaftar.
+     * Ubah "1 Ikhwan" menjadi kelas pada tahun ajaran pendaftar.
+     * Format lama seperti "1A" tetap diterima untuk kompatibilitas impor.
      */
     private function resolveClassroom(StudentRegistration $registration, string $target): ?Classroom
     {
-        $normalized = strtoupper(str_replace(' ', '', $target));
-
-        preg_match('/^([0-9]+)(.*)$/', $normalized, $matches);
+        preg_match('/^\s*([0-9]+)\s*(.*?)\s*$/', $target, $matches);
 
         if (empty($matches[1]) || trim($matches[2] ?? '') === '') {
             return null;
         }
 
+        $className = Classroom::normalizeName($matches[2]);
+
+        if (! $className) {
+            return null;
+        }
+
+        $acceptedNames = $className === Classroom::NAME_IKHWAN
+            ? [Classroom::NAME_IKHWAN, 'A']
+            : [Classroom::NAME_AKHWAT, 'B'];
+
         return Classroom::where('academic_year_id', $registration->academic_year_id)
             ->where('grade_level', (int) $matches[1])
-            ->where('name', trim($matches[2]))
+            ->whereIn('name', $acceptedNames)
             ->first();
     }
 
@@ -586,7 +595,7 @@ class ClassroomPlacementController extends Controller
             $guide->setTitle('Petunjuk');
             $guide->fromArray([
                 ['Petunjuk pengisian'],
-                ['1. Isi hanya kolom "Kelas Tujuan" pada siswa yang ingin ditempatkan, mis. 1A atau 2B.'],
+                ['1. Isi hanya kolom "Kelas Tujuan" pada siswa yang ingin ditempatkan, mis. "1 Ikhwan" atau "2 Akhwat".'],
                 ['2. Baris yang kolom "Kelas Tujuan"-nya dikosongkan tidak akan diubah.'],
                 ['3. Jangan mengubah nama kolom pada baris pertama.'],
                 ['4. Kolom No. Pendaftaran, NIS, Nama, dan Tahun Ajaran dipakai untuk mengenali siswa.'],
@@ -597,8 +606,8 @@ class ClassroomPlacementController extends Controller
                 [],
                 ['Contoh isian:'],
                 self::IMPORT_HEADERS,
-                [12, '10001', 'Budi Santoso', '2026/2027', '', '1A'],
-                [13, '10002', 'Andi Wijaya', '2026/2027', '1B', '1A'],
+                [12, '10001', 'Budi Santoso', '2026/2027', '', '1 Ikhwan'],
+                [13, '10002', 'Andi Wijaya', '2026/2027', '1 Akhwat', '1 Ikhwan'],
             ]);
             $guide->getColumnDimension('A')->setWidth(95);
             $spreadsheet->setActiveSheetIndex(0);

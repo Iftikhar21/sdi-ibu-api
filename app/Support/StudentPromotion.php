@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
  *
  * Kenaikan kelas tidak mengubah penempatan lama: satu baris penempatan baru
  * dibuat pada tahun ajaran tujuan sehingga riwayat kelas siswa tetap utuh
- * (mis. 2026/2027 → 1A dan 2027/2028 → 2A).
+ * (mis. 2026/2027 → 1 Ikhwan dan 2027/2028 → 2 Ikhwan).
  */
 class StudentPromotion
 {
@@ -79,7 +79,7 @@ class StudentPromotion
                 $student = $placement->student;
                 $sourceClassroom = $placement->classroom;
 
-                // Usulan: tingkat + 1 dengan nama kelas yang sama (1A -> 2A)
+                // Usulan: tingkat + 1 dengan kelompok kelas yang sama.
                 $suggested = $this->findTargetClassroom(
                     $targetClassrooms,
                     (int) $sourceClassroom->grade_level + 1,

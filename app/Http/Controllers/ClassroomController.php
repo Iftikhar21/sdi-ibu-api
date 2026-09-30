@@ -21,6 +21,20 @@ class ClassroomController extends Controller
     /** Kolom yang dipakai untuk export, template, dan import. */
     private const IMPORT_HEADERS = ['Tahun Ajaran', 'Tingkat', 'Nama Kelas', 'Kuota', 'Status'];
 
+    /** Pastikan nama kelas hanya Ikhwan/Akhwat; A/B tetap diterima sebagai alias lama. */
+    private function normalizeClassroomName(string $name): string
+    {
+        $normalized = Classroom::normalizeName($name);
+
+        if (! $normalized) {
+            throw ValidationException::withMessages([
+                'name' => 'Nama kelas harus Ikhwan atau Akhwat.',
+            ]);
+        }
+
+        return $normalized;
+    }
+
     /**
      * Satu kombinasi tahun ajaran + tingkat + nama kelas tidak boleh ganda.
      */
@@ -145,7 +159,7 @@ class ClassroomController extends Controller
         $payload = [
             'academic_year_id' => (int) $validated['academic_year_id'],
             'grade_level' => (int) $validated['grade_level'],
-            'name' => strtoupper(trim($validated['name'])),
+            'name' => $this->normalizeClassroomName($validated['name']),
         ];
 
         $this->assertNotDuplicate($payload);
@@ -189,7 +203,9 @@ class ClassroomController extends Controller
         $payload = [
             'academic_year_id' => (int) $request->input('academic_year_id', $classroom->academic_year_id),
             'grade_level' => (int) $request->input('grade_level', $classroom->grade_level),
-            'name' => strtoupper(trim((string) $request->input('name', $classroom->name))),
+            'name' => $this->normalizeClassroomName(
+                (string) $request->input('name', $classroom->name)
+            ),
         ];
 
         $this->assertNotDuplicate($payload, $classroom->id);
@@ -298,15 +314,15 @@ class ClassroomController extends Controller
                 ['2. Jangan mengubah nama kolom pada baris pertama.'],
                 ['3. Kolom Tahun Ajaran harus sama persis dengan Master Tahun Ajaran, mis. 2026/2027.'],
                 ['4. Tingkat diisi angka 1 sampai 6.'],
-                ['5. Nama Kelas diisi huruf kelas, mis. A, B, atau C.'],
+                ['5. Nama Kelas diisi "Ikhwan" atau "Akhwat". A/B dari format lama tetap dapat diimport.'],
                 ['6. Kuota diisi angka lebih dari 0.'],
                 ['7. Status diisi "Aktif" atau "Tidak Aktif" (boleh dikosongkan, berarti Aktif).'],
                 ['8. Bila kombinasi Tahun Ajaran + Tingkat + Nama Kelas sudah ada, datanya akan diperbarui.'],
                 [],
                 ['Contoh isian:'],
                 self::IMPORT_HEADERS,
-                ['2026/2027', 1, 'A', 28, 'Aktif'],
-                ['2026/2027', 1, 'B', 28, 'Aktif'],
+                ['2026/2027', 1, 'Ikhwan', 28, 'Aktif'],
+                ['2026/2027', 1, 'Akhwat', 28, 'Aktif'],
             ]);
             $guide->getColumnDimension('A')->setWidth(90);
             $spreadsheet->setActiveSheetIndex(0);
@@ -457,10 +473,10 @@ class ClassroomController extends Controller
                 continue;
             }
 
-            $className = strtoupper($classRaw);
+            $className = Classroom::normalizeName($classRaw);
 
-            if ($className === '') {
-                $errors[] = "Baris {$rowNumber}: nama kelas wajib diisi.";
+            if (! $className) {
+                $errors[] = "Baris {$rowNumber}: nama kelas harus Ikhwan atau Akhwat.";
 
                 continue;
             }
@@ -476,7 +492,7 @@ class ClassroomController extends Controller
             $key = $name.'|'.$grade.'|'.$className;
 
             if (isset($seen[$key])) {
-                $errors[] = "Baris {$rowNumber}: kelas {$grade}{$className} pada {$name} tercantum lebih dari sekali.";
+                $errors[] = "Baris {$rowNumber}: kelas {$grade} {$className} pada {$name} tercantum lebih dari sekali.";
 
                 continue;
             }

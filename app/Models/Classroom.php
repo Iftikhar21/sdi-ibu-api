@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Classroom extends Model
 {
+    public const NAME_IKHWAN = 'Ikhwan';
+
+    public const NAME_AKHWAT = 'Akhwat';
+
+    public const NAMES = [self::NAME_IKHWAN, self::NAME_AKHWAT];
+
     protected $table = 'classrooms';
 
     protected $fillable = [
@@ -24,12 +30,13 @@ class Classroom extends Model
 
     protected $appends = ['display_name', 'filled_count', 'available_count'];
 
-    /**
-     * Urutkan per tingkat lalu nama kelas (1A, 1B, 2A, ...).
-     */
+    /** Urutkan per tingkat lalu nama kelompok kelas. */
     public function scopeOrdered($query)
     {
-        return $query->orderBy('grade_level')->orderBy('name');
+        return $query
+            ->orderBy('grade_level')
+            ->orderByRaw("CASE name WHEN 'Ikhwan' THEN 1 WHEN 'Akhwat' THEN 2 WHEN 'A' THEN 1 WHEN 'B' THEN 2 ELSE 3 END")
+            ->orderBy('name');
     }
 
     public function academicYear()
@@ -60,11 +67,24 @@ class Classroom extends Model
         return max(0, $this->quota - $this->filled_count);
     }
 
-    /**
-     * Nama tampil kelas, mis. "1A".
-     */
+    /** Normalisasi input baru sekaligus alias lama A/B. */
+    public static function normalizeName(?string $name): ?string
+    {
+        return match (strtolower(trim((string) $name))) {
+            'a', 'ikhwan' => self::NAME_IKHWAN,
+            'b', 'akhwat' => self::NAME_AKHWAT,
+            default => null,
+        };
+    }
+
+    /** Nama tampil kelas, mis. "1 Ikhwan". */
     public function getDisplayNameAttribute(): string
     {
-        return $this->grade_level.$this->name;
+        // Format lama dipertahankan sebagai fallback bila migrasi belum dijalankan.
+        if (in_array($this->name, ['A', 'B'], true)) {
+            return $this->grade_level.$this->name;
+        }
+
+        return $this->grade_level.' '.$this->name;
     }
 }

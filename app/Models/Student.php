@@ -124,7 +124,7 @@ class Student extends Model
     }
 
     /**
-     * Nama kelas yang sedang ditempati, mis. "1A".
+     * Nama kelas yang sedang ditempati, mis. "1 Ikhwan".
      */
     public function getClassroomLabelAttribute(): ?string
     {

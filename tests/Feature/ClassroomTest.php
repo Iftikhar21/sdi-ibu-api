@@ -43,7 +43,7 @@ class ClassroomTest extends TestCase
             array_merge([
                 'academic_year_id' => $this->tahunAjaran()->id,
                 'grade_level' => 1,
-                'name' => 'A',
+                'name' => 'Ikhwan',
                 'quota' => 28,
                 'is_active' => true,
             ], $override)
@@ -55,18 +55,18 @@ class ClassroomTest extends TestCase
         $data = $this->buatKelas();
 
         $this->assertSame(1, $data['grade_level']);
-        $this->assertSame('A', $data['name']);
+        $this->assertSame('Ikhwan', $data['name']);
         $this->assertSame(28, $data['quota']);
-        $this->assertSame('1A', $data['display_name']);
+        $this->assertSame('1 Ikhwan', $data['display_name']);
         $this->assertSame('2026/2027', $data['academic_year']['name']);
     }
 
-    public function test_nama_kelas_huruf_kecil_disimpan_sebagai_huruf_besar(): void
+    public function test_alias_nama_kelas_lama_dinormalisasi(): void
     {
         $data = $this->buatKelas(['name' => 'b']);
 
-        $this->assertSame('B', $data['name']);
-        $this->assertSame('1B', $data['display_name']);
+        $this->assertSame('Akhwat', $data['name']);
+        $this->assertSame('1 Akhwat', $data['display_name']);
     }
 
     public function test_kombinasi_yang_sama_pada_tahun_ajaran_yang_sama_ditolak(): void
@@ -85,7 +85,7 @@ class ClassroomTest extends TestCase
         (new ClassroomController)->store(Request::create('/api/classroom/create', 'POST', [
             'academic_year_id' => $tahunPertama->id,
             'grade_level' => 1,
-            'name' => 'A',
+            'name' => 'Ikhwan',
             'quota' => 28,
         ]));
 
@@ -130,10 +130,44 @@ class ClassroomTest extends TestCase
         $this->assertSame(0, Classroom::count());
     }
 
+    public function test_nama_kelas_di_luar_ikhwan_dan_akhwat_ditolak(): void
+    {
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        $this->buatKelas(['name' => 'C']);
+    }
+
+    public function test_migrasi_mengubah_a_b_tanpa_mengubah_id_kelas(): void
+    {
+        $year = $this->tahunAjaran();
+        $ikhwan = Classroom::create([
+            'academic_year_id' => $year->id,
+            'grade_level' => 1,
+            'name' => 'A',
+            'quota' => 28,
+            'is_active' => true,
+        ]);
+        $akhwat = Classroom::create([
+            'academic_year_id' => $year->id,
+            'grade_level' => 1,
+            'name' => 'B',
+            'quota' => 28,
+            'is_active' => true,
+        ]);
+
+        $migration = require database_path(
+            'migrations/2026_10_01_000021_convert_classroom_names_to_gender_groups.php'
+        );
+        $migration->up();
+
+        $this->assertSame('Ikhwan', Classroom::findOrFail($ikhwan->id)->name);
+        $this->assertSame('Akhwat', Classroom::findOrFail($akhwat->id)->name);
+    }
+
     public function test_update_kelas_dan_tidak_boleh_duplikat(): void
     {
-        $kelasA = $this->buatKelas(['name' => 'A']);
-        $kelasB = $this->buatKelas(['name' => 'B', 'quota' => 30]);
+        $kelasA = $this->buatKelas(['name' => 'Ikhwan']);
+        $kelasB = $this->buatKelas(['name' => 'Akhwat', 'quota' => 30]);
 
         $controller = new ClassroomController;
 
@@ -151,15 +185,15 @@ class ClassroomTest extends TestCase
             $controller->update(Request::create(
                 "/api/classroom/{$kelasB['id']}/update",
                 'PUT',
-                ['name' => 'A']
+                ['name' => 'Ikhwan']
             ), $kelasB['id']);
             $this->fail('Nama kelas duplikat seharusnya ditolak.');
         } catch (\Illuminate\Validation\ValidationException $exception) {
             $this->assertArrayHasKey('name', $exception->errors());
         }
 
-        $this->assertSame('B', Classroom::find($kelasB['id'])->name);
-        $this->assertSame('A', Classroom::find($kelasA['id'])->name);
+        $this->assertSame('Akhwat', Classroom::find($kelasB['id'])->name);
+        $this->assertSame('Ikhwan', Classroom::find($kelasA['id'])->name);
     }
 
     public function test_filter_tahun_ajaran_dan_urutan_tampil(): void
@@ -169,7 +203,7 @@ class ClassroomTest extends TestCase
 
         $controller = new ClassroomController;
 
-        foreach ([[2, 'B'], [1, 'B'], [1, 'A']] as [$tingkat, $nama]) {
+        foreach ([[2, 'Akhwat'], [1, 'Akhwat'], [1, 'Ikhwan']] as [$tingkat, $nama]) {
             $controller->store(Request::create('/api/classroom/create', 'POST', [
                 'academic_year_id' => $tahunBaru->id,
                 'grade_level' => $tingkat,
@@ -181,16 +215,19 @@ class ClassroomTest extends TestCase
         $controller->store(Request::create('/api/classroom/create', 'POST', [
             'academic_year_id' => $tahunLama->id,
             'grade_level' => 1,
-            'name' => 'A',
+            'name' => 'Ikhwan',
             'quota' => 25,
         ]));
 
-        // Urut per tingkat lalu nama (1A, 1B, 2B)
+        // Urut per tingkat, lalu Ikhwan sebelum Akhwat
         $semuaBaru = $controller->index(Request::create('/api/classroom', 'GET', [
             'academic_year_id' => $tahunBaru->id,
         ]))->getData(true)['data'];
 
-        $this->assertSame(['1A', '1B', '2B'], array_column($semuaBaru, 'display_name'));
+        $this->assertSame(
+            ['1 Ikhwan', '1 Akhwat', '2 Akhwat'],
+            array_column($semuaBaru, 'display_name')
+        );
 
         // Filter tahun ajaran memisahkan data antar tahun
         $semuaLama = $controller->index(Request::create('/api/classroom', 'GET', [

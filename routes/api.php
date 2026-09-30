@@ -27,8 +27,8 @@ use App\Http\Controllers\OrganizationStructureController;
 use App\Http\Controllers\PrincipalController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\PromotionController;
-use App\Http\Controllers\ReportCardController;
 use App\Http\Controllers\RegistrationInformationController;
+use App\Http\Controllers\ReportCardController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentRegistrationController;
@@ -326,6 +326,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
         Route::put('/{id}/academic-year', [AdminRegistrationController::class, 'setAcademicYear']);
         Route::get('/{id}', [AdminRegistrationController::class, 'show']);
         Route::put('/{id}/status', [AdminRegistrationController::class, 'updateStatus']);
+        Route::delete('/{id}', [AdminRegistrationController::class, 'destroy']);
     });
 
     Route::prefix('admin/dashboard')->group(function () {

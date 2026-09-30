@@ -81,14 +81,14 @@ class ClassroomImportExportTest extends TestCase
         Classroom::create([
             'academic_year_id' => $year->id,
             'grade_level' => 1,
-            'name' => 'A',
+            'name' => 'Ikhwan',
             'quota' => 28,
             'is_active' => true,
         ]);
         Classroom::create([
             'academic_year_id' => $year->id,
             'grade_level' => 2,
-            'name' => 'B',
+            'name' => 'Akhwat',
             'quota' => 30,
             'is_active' => false,
         ]);
@@ -105,7 +105,7 @@ class ClassroomImportExportTest extends TestCase
         $this->assertSame('Nama Kelas', $sheet->getCell('C1')->getValue());
         $this->assertSame('2026/2027', $sheet->getCell('A2')->getValue());
         $this->assertSame(1, $sheet->getCell('B2')->getValue());
-        $this->assertSame('A', $sheet->getCell('C2')->getValue());
+        $this->assertSame('Ikhwan', $sheet->getCell('C2')->getValue());
         $this->assertSame(28, $sheet->getCell('D2')->getValue());
         $this->assertSame('Aktif', $sheet->getCell('E2')->getValue());
         $this->assertSame('Tidak Aktif', $sheet->getCell('E3')->getValue());
@@ -124,6 +124,8 @@ class ClassroomImportExportTest extends TestCase
         $this->assertSame('Kelas', $spreadsheet->getSheet(0)->getTitle());
         $this->assertSame('Tahun Ajaran', $spreadsheet->getSheet(0)->getCell('A1')->getValue());
         $this->assertSame('Petunjuk', $spreadsheet->getSheet(1)->getTitle());
+        $this->assertSame('Ikhwan', $spreadsheet->getSheet(1)->getCell('C13')->getValue());
+        $this->assertSame('Akhwat', $spreadsheet->getSheet(1)->getCell('C14')->getValue());
 
         // Baris data pada sheet pertama masih kosong
         $this->assertNull($spreadsheet->getSheet(0)->getCell('A2')->getValue());
@@ -155,8 +157,11 @@ class ClassroomImportExportTest extends TestCase
         $this->assertSame(0, $data['data']['updated']);
         $this->assertSame(3, Classroom::count());
 
-        // Nama kelas huruf kecil disimpan sebagai huruf besar
-        $this->assertSame('B', Classroom::where('grade_level', 1)->where('name', 'B')->first()->name);
+        // Alias lama A/B tetap diterima, tetapi disimpan memakai nama baru.
+        $this->assertSame(
+            'Akhwat',
+            Classroom::where('grade_level', 1)->where('name', 'Akhwat')->first()->name
+        );
 
         // Status "Tidak Aktif" terbaca dengan benar
         $this->assertFalse(Classroom::where('grade_level', 2)->first()->is_active);
@@ -172,7 +177,7 @@ class ClassroomImportExportTest extends TestCase
         Classroom::create([
             'academic_year_id' => $year->id,
             'grade_level' => 1,
-            'name' => 'A',
+            'name' => 'Ikhwan',
             'quota' => 28,
             'is_active' => true,
         ]);
@@ -181,7 +186,7 @@ class ClassroomImportExportTest extends TestCase
             ['Tahun Ajaran', 'Tingkat', 'Nama Kelas', 'Kuota', 'Status'],
             [
                 ['2026/2027', 1, 'A', 32, 'Tidak Aktif'],
-                ['2026/2027', 1, 'C', 26, 'Aktif'],
+                ['2026/2027', 1, 'Akhwat', 26, 'Aktif'],
             ]
         );
 
@@ -191,7 +196,7 @@ class ClassroomImportExportTest extends TestCase
         $this->assertSame(1, $data['data']['updated']);
         $this->assertSame(2, Classroom::count());
 
-        $kelasA = Classroom::where('name', 'A')->firstOrFail();
+        $kelasA = Classroom::where('name', 'Ikhwan')->firstOrFail();
 
         $this->assertSame(32, $kelasA->quota);
         $this->assertFalse($kelasA->is_active);
@@ -231,8 +236,8 @@ class ClassroomImportExportTest extends TestCase
             [
                 ['2026/2027', 7, 'A', 28, 'Aktif'],
                 ['2026/2027', 1, 'B', 0, 'Aktif'],
-                ['2026/2027', 1, 'C', 20, 'Aktif'],
-                ['2026/2027', 1, 'C', 20, 'Aktif'],
+                ['2026/2027', 1, 'Ikhwan', 20, 'Aktif'],
+                ['2026/2027', 1, 'Ikhwan', 20, 'Aktif'],
             ]
         );
 
@@ -287,7 +292,7 @@ class ClassroomImportExportTest extends TestCase
         $classroom = Classroom::create([
             'academic_year_id' => $year->id,
             'grade_level' => 1,
-            'name' => 'A',
+            'name' => 'Ikhwan',
             'quota' => 28,
             'is_active' => true,
         ]);

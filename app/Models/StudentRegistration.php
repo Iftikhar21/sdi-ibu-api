@@ -93,7 +93,7 @@ class StudentRegistration extends Model
     }
 
     /**
-     * Nama kelas yang tampil, mis. "1A".
+     * Nama kelas yang tampil, mis. "1 Ikhwan".
      */
     public function getClassroomLabelAttribute(): ?string
     {

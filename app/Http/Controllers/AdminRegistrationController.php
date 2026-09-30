@@ -434,6 +434,47 @@ class AdminRegistrationController extends Controller
     }
 
     /**
+     * Hapus satu pendaftaran beserta data siswa turunannya.
+     *
+     * Foreign key akan menghapus siswa, riwayat kelas, nilai, kehadiran,
+     * dan kelulusan terkait. Akun orang tua tetap disimpan karena dapat
+     * dipakai untuk pendaftaran anak lain.
+     */
+    public function destroy($id)
+    {
+        $registration = StudentRegistration::find($id);
+
+        if (! $registration) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pendaftaran tidak ditemukan',
+            ], 404);
+        }
+
+        $name = $registration->full_name;
+        $files = array_values(array_filter([
+            $registration->photo,
+            $registration->birth_certificate,
+            $registration->family_card,
+            $registration->payment_proof,
+            $registration->transfer_proof,
+        ]));
+
+        DB::transaction(function () use ($registration) {
+            $registration->delete();
+        });
+
+        if ($files !== []) {
+            Storage::disk('public')->delete($files);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Pendaftaran {$name} berhasil dihapus",
+        ]);
+    }
+
+    /**
      * Isi / ubah tahun ajaran pada satu pendaftaran.
      *
      * Dipakai untuk melengkapi pendaftaran lama yang belum punya tahun ajaran
