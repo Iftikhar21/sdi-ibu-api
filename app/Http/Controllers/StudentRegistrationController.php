@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\AcademicYear;
 use App\Models\RegistrationSetting;
 use App\Models\StudentRegistration;
-use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class StudentRegistrationController extends Controller
 {
@@ -46,6 +49,8 @@ class StudentRegistrationController extends Controller
 
     public function store(Request $request)
     {
+        $storedPaths = [];
+
         try {
             $registrationSetting = RegistrationSetting::query()->first();
             $phase = $registrationSetting?->phase ?? 'closed';
@@ -107,62 +112,88 @@ class StudentRegistrationController extends Controller
                 ], 422);
             }
 
-            $quota = (int) ($registrationSetting?->quota ?? 0);
-            $registered = StudentRegistration::query()
-                ->where('academic_year_id', $activeYear->id)
-                ->where('status', '!=', 'rejected')
-                ->count();
+            $fileFolders = [
+                'photo' => 'registrations/photos',
+                'birth_certificate' => 'registrations/birth_certificates',
+                'family_card' => 'registrations/family_cards',
+                'payment_proof' => 'registrations/payment_proofs',
+                'transfer_proof' => 'registrations/transfer_proofs',
+            ];
 
-            if ($quota > 0 && $registered >= $quota) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Kuota pendaftaran tahun ajaran '.$activeYear->name
-                        .' sudah penuh. Silakan hubungi admin sekolah.',
-                ], 422);
-            }
+            /*
+             * Kunci baris pengaturan selama pemeriksaan kuota dan penyimpanan.
+             * Dua pendaftaran yang masuk bersamaan tidak bisa sama-sama melewati
+             * kursi terakhir. File yang sempat tersimpan dibersihkan saat gagal.
+             */
+            $registration = DB::transaction(function () use (
+                $request,
+                $validated,
+                $activeYear,
+                $fileFolders,
+                &$storedPaths
+            ) {
+                $lockedSetting = RegistrationSetting::query()->lockForUpdate()->first();
+                $lockedPhase = $lockedSetting?->phase ?? 'closed';
 
-            $registration = new StudentRegistration;
-            $registration->user_id = $request->user()->id;
-            $registration->academic_year_id = $activeYear->id;
+                if ($lockedPhase !== 'open') {
+                    throw ValidationException::withMessages([
+                        'registration' => $lockedSetting?->phase_message
+                            ?: 'Pendaftaran siswa baru sedang tidak dibuka.',
+                    ]);
+                }
 
-            // Simpan data text
-            $registration->fill($validated);
+                $lockedYear = AcademicYear::query()
+                    ->whereKey($activeYear->id)
+                    ->where('is_active', true)
+                    ->lockForUpdate()
+                    ->first();
 
-            // Upload dan simpan file
-            if ($request->hasFile('photo')) {
-                $registration->photo = $request->file('photo')
-                    ->store('registrations/photos', 'public');
-            }
+                if (! $lockedYear) {
+                    throw ValidationException::withMessages([
+                        'academic_year' => 'Tahun ajaran aktif berubah. Muat ulang halaman lalu coba kembali.',
+                    ]);
+                }
 
-            if ($request->hasFile('birth_certificate')) {
-                $registration->birth_certificate = $request->file('birth_certificate')
-                    ->store('registrations/birth_certificates', 'public');
-            }
+                $quota = (int) ($lockedSetting?->quota ?? 0);
+                $registered = StudentRegistration::query()
+                    ->where('academic_year_id', $lockedYear->id)
+                    ->where('status', '!=', 'rejected')
+                    ->count();
 
-            if ($request->hasFile('family_card')) {
-                $registration->family_card = $request->file('family_card')
-                    ->store('registrations/family_cards', 'public');
-            }
+                if ($quota > 0 && $registered >= $quota) {
+                    throw ValidationException::withMessages([
+                        'quota' => 'Kuota pendaftaran tahun ajaran '.$lockedYear->name
+                            .' sudah penuh. Silakan hubungi admin sekolah.',
+                    ]);
+                }
 
-            if ($request->hasFile('payment_proof')) {
-                $registration->payment_proof = $request->file('payment_proof')
-                    ->store('registrations/payment_proofs', 'public');
-            }
+                $registration = new StudentRegistration;
+                $registration->user_id = $request->user()->id;
+                $registration->academic_year_id = $lockedYear->id;
+                $registration->fill(Arr::except($validated, array_keys($fileFolders)));
 
-            if ($request->hasFile('transfer_proof')) {
-                $registration->transfer_proof = $request->file('transfer_proof')
-                    ->store('registrations/transfer_proofs', 'public');
-            }
+                foreach ($fileFolders as $field => $folder) {
+                    if (! $request->hasFile($field)) {
+                        continue;
+                    }
 
-            $registration->status = 'submitted';
-            $registration->save();
+                    $path = $request->file($field)->store($folder, 'public');
+                    $storedPaths[] = $path;
+                    $registration->{$field} = $path;
+                }
 
-            // Nomor pendaftaran unik, dibuat setelah id terbentuk
-            $registration->registration_number = StudentRegistration::makeRegistrationNumber(
-                $registration->id,
-                $activeYear
-            );
-            $registration->save();
+                $registration->status = 'submitted';
+                $registration->save();
+
+                // Nomor pendaftaran unik, dibuat setelah id terbentuk.
+                $registration->registration_number = StudentRegistration::makeRegistrationNumber(
+                    $registration->id,
+                    $lockedYear
+                );
+                $registration->save();
+
+                return $registration;
+            }, 3);
 
             // Generate URL untuk response
             $registration->photo_url = asset('storage/'.$registration->photo);
@@ -179,15 +210,25 @@ class StudentRegistrationController extends Controller
                 'data' => $registration,
             ], 201);
         } catch (ValidationException $e) {
+            if ($storedPaths !== []) {
+                Storage::disk('public')->delete($storedPaths);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validasi gagal',
                 'errors' => $e->errors(),
             ], 422);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            if ($storedPaths !== []) {
+                Storage::disk('public')->delete($storedPaths);
+            }
+
+            report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan: '.$e->getMessage(),
+                'message' => 'Pendaftaran gagal diproses oleh server. Silakan coba kembali.',
             ], 500);
         }
     }
